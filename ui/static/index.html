@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jev-gated Agent Harness — Control Room</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, sans-serif;
+    margin: 0; background: #ffffff; color: #1c2333;
+  }
+  /* ---- gradient header ---- */
+  header {
+    background: linear-gradient(120deg, #7c3aed 0%, #2563eb 35%, #059669 70%, #db2777 100%);
+    color: #fff; padding: 22px 28px;
+  }
+  header h1 { margin: 0; font-size: 20px; letter-spacing: .3px; }
+  header .sub { opacity: .92; font-size: 13px; margin-top: 4px; }
+  #modeBanner {
+    display: none; background: #fff7ed; color: #9a3412;
+    border-bottom: 1px solid #fed7aa; padding: 8px 28px; font-size: 13px;
+  }
+  main { max-width: 1080px; margin: 20px auto; padding: 0 16px 60px; display: grid; gap: 16px; }
+
+  .card {
+    background: #fff; border: 1px solid #e6eaf3; border-radius: 14px;
+    padding: 16px 18px; box-shadow: 0 1px 3px rgba(30,41,59,.06);
+  }
+  .card h2 { margin: 0 0 10px; font-size: 14px; color: #475069; text-transform: uppercase; letter-spacing: .6px; }
+
+  /* ---- scenario buttons ---- */
+  .scenarios { display: flex; flex-wrap: wrap; gap: 8px; }
+  .scenarios button {
+    border: 0; border-radius: 999px; padding: 8px 16px; font: inherit; font-size: 13px;
+    cursor: pointer; color: #fff; background: #2563eb; transition: transform .08s ease, opacity .15s;
+  }
+  .scenarios button:hover { transform: translateY(-1px); opacity: .9; }
+  .scenarios button:disabled { opacity: .45; cursor: default; transform: none; }
+  .scenarios button:nth-child(1) { background: #d97706; }
+  .scenarios button:nth-child(2) { background: #dc2626; }
+  .scenarios button:nth-child(3) { background: #2563eb; }
+  .scenarios button:nth-child(4) { background: #059669; }
+  .scenarios button:nth-child(5) { background: #0d9488; }
+  .scenarios button:nth-child(6) { background: #db2777; }
+  .scenarios button:nth-child(7) { background: #7c3aed; }
+
+  /* ---- control room stats ---- */
+  #stats { display: flex; flex-wrap: wrap; gap: 10px; }
+  .stat {
+    flex: 1 1 120px; border-radius: 12px; padding: 10px 14px; color: #fff;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  }
+  .stat .num { font-size: 22px; font-weight: 700; }
+  .stat .lbl { font-size: 11.5px; opacity: .9; }
+  .stat:nth-child(2) { background: linear-gradient(135deg, #0ea5e9, #2563eb); }
+  .stat:nth-child(3) { background: linear-gradient(135deg, #10b981, #059669); }
+  .stat:nth-child(4) { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .stat:nth-child(5) { background: linear-gradient(135deg, #f43f5e, #dc2626); }
+
+  /* ---- event stream ---- */
+  #stream { display: grid; gap: 10px; min-height: 40px; }
+  .empty { color: #98a2b3; font-size: 13px; }
+  .event {
+    border: 1px solid #e6eaf3; border-left: 5px solid #999; border-radius: 10px;
+    padding: 10px 14px; background: #fff;
+    animation: pop .25s ease;
+  }
+  @keyframes pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .event.hook1_skills { border-left-color: #7c3aed; }
+  .event.hook2_router { border-left-color: #2563eb; }
+  .event.hook3_risk_gate, .event.hook3_refund_gate { border-left-color: #d97706; }
+  .event.hook4_quality { border-left-color: #059669; }
+  .event.rag { border-left-color: #0d9488; }
+  .event.multimodal { border-left-color: #db2777; }
+  .event.cascade { border-left-color: #65a30d; }
+
+  .ev-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .hook-badge {
+    color: #fff; font-size: 11px; font-weight: 700; border-radius: 6px;
+    padding: 2px 8px; letter-spacing: .4px;
+  }
+  .hook1_skills .hook-badge { background: #7c3aed; }
+  .hook2_router .hook-badge { background: #2563eb; }
+  .hook3_risk_gate .hook-badge, .hook3_refund_gate .hook-badge { background: #d97706; }
+  .hook4_quality .hook-badge { background: #059669; }
+  .rag .hook-badge { background: #0d9488; }
+  .multimodal .hook-badge { background: #db2777; }
+  .cascade .hook-badge { background: #65a30d; }
+
+  .chip {
+    font-size: 11px; font-weight: 700; border-radius: 999px; padding: 2px 10px;
+  }
+  .chip.APPROVE, .chip.SEND, .chip.MATCH, .chip.SUPPORTED { background: #d1fae5; color: #065f46; }
+  .chip.BLOCK, .chip.BLOCKED { background: #fee2e2; color: #991b1b; }
+  .chip.REVIEW, .chip.PRUNE, .chip.UNSUPPORTED { background: #fef3c7; color: #92400e; }
+  .chip.HANDOFF, .chip.DECLINED { background: #e0e7ff; color: #3730a3; }
+  .chip.MISMATCH { background: #fce7f3; color: #9d174d; }
+  .chip { background: #f1f5f9; color: #334155; }
+
+  .ev-stage { font-size: 12px; color: #667085; }
+  .ev-detail { font-size: 12px; color: #475069; margin-top: 6px; font-family: ui-monospace, Consolas, monospace;
+               white-space: pre-wrap; word-break: break-word; }
+
+  /* ---- score bars ---- */
+  .bar-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 11.5px; }
+  .bar-row .name { width: 130px; color: #475069; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bar-track { flex: 1; height: 8px; background: #eef2f7; border-radius: 999px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #8b5cf6, #2563eb);
+              transition: width .4s ease; }
+  .bar-row .val { width: 44px; text-align: right; color: #667085; }
+
+  /* ---- savings panel ---- */
+  #savingsPanel .big-stats { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sav-stat {
+    flex: 1 1 150px; border-radius: 12px; padding: 14px 16px; color: #fff;
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+  }
+  .sav-stat .num { font-size: 24px; font-weight: 800; }
+  .sav-stat .lbl { font-size: 11.5px; opacity: .92; }
+  .sav-stat.tok  { background: linear-gradient(135deg, #0ea5e9, #2563eb); }
+  .sav-stat.cost { background: linear-gradient(135deg, #10b981, #059669); }
+  .sav-stat.lat  { background: linear-gradient(135deg, #f59e0b, #d97706); }
+  .sav-stat.auto { background: linear-gradient(135deg, #f43f5e, #db2777); }
+
+  .hookbars { margin-top: 14px; display: grid; gap: 8px; }
+  .hookbar-row { display: grid; grid-template-columns: 160px 1fr 90px; gap: 8px; align-items: center; font-size: 12px; }
+  .hookbar-track { position: relative; height: 14px; background: #eef2f7; border-radius: 999px; overflow: hidden; }
+  .hookbar-jev { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #8b5cf6, #2563eb); border-radius: 999px; }
+  .hookbar-base { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(217, 119, 6, .35); border-radius: 999px; }
+  .hookbar-legend { font-size: 11.5px; color: #667085; margin-top: 6px; }
+  .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin: 0 4px 0 10px; vertical-align: -1px; }
+
+  #cmpTable { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 8px; }
+  #cmpTable th, #cmpTable td { text-align: right; padding: 6px 10px; border-bottom: 1px solid #eef2f7; }
+  #cmpTable th:first-child, #cmpTable td:first-child { text-align: left; }
+  #cmpTable th { color: #667085; font-weight: 600; }
+  #cmpTable tr.totals td { font-weight: 700; border-top: 2px solid #e6eaf3; }
+
+  /* ---- advisor cards ---- */
+  .advice-card {
+    border: 1px solid #c7d2fe; background: linear-gradient(135deg, #eef2ff, #fdf4ff);
+    border-radius: 10px; padding: 10px 12px; font-size: 12.5px; color: #3730a3;
+    display: flex; gap: 8px; align-items: flex-start; animation: pop .25s ease;
+  }
+  .advice-card .close { margin-left: auto; border: 0; background: none; cursor: pointer; color: #818cf8; font-size: 15px; line-height: 1; }
+  .advice-card b { display: block; margin-bottom: 2px; }
+  .event.advisor { border-left-color: #6366f1; }
+  .advisor .hook-badge { background: #6366f1; }
+  .chip.LOWER_THRESHOLD, .chip.RAISE_THRESHOLD { background: #e0e7ff; color: #3730a3; }
+
+  /* ---- code map ---- */
+  .codemap { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .codemap .hook-card { border-radius: 10px; padding: 10px 12px; font-size: 12px; border: 1px solid #e6eaf3; }
+  .codemap .hook-card b { display: block; margin-bottom: 4px; font-size: 12.5px; }
+  .codemap .h1 { background: #f5f3ff; } .codemap .h1 b { color: #7c3aed; }
+  .codemap .h2 { background: #eff6ff; } .codemap .h2 b { color: #2563eb; }
+  .codemap .h3 { background: #fffbeb; } .codemap .h3 b { color: #b45309; }
+  .codemap .h4 { background: #ecfdf5; } .codemap .h4 b { color: #059669; }
+  .codemap code { background: #fff; border: 1px solid #e6eaf3; border-radius: 5px; padding: 0 4px; }
+  #latency { font-size: 12px; color: #667085; }
+</style>
+<link rel="stylesheet" href="/static/playground.css">
+</head>
+<body>
+<header>
+  <h1>⚡ Jev-gated Agent Harness — Control Room</h1>
+  <div class="sub">Decision models (TypesafeAI Jev) wired into a LangChain DeepAgents loop · <span id="healthStatus">connecting…</span> · <span id="latency"></span></div>
+</header>
+<div id="modeBanner">🔑 <b>Offline mode.</b> OPENROUTER_API_KEY is not set — all scenarios run on scripted fakes. Export the key and restart with <code>JEV_HARNESS_OFFLINE=0</code> for live mode.</div>
+
+<main>
+  <div class="card" id="playground"></div>
+
+  <div class="card">
+    <h2>Demo Scenarios</h2>
+    <div class="scenarios" id="buttons"></div>
+  </div>
+
+  <div class="card">
+    <h2>Control Room</h2>
+    <div id="stats">
+      <div class="stat"><div class="num" id="stEvents">0</div><div class="lbl">gate events</div></div>
+      <div class="stat"><div class="num" id="stJev">0</div><div class="lbl">Jev decision calls</div></div>
+      <div class="stat"><div class="num" id="stApprove">0</div><div class="lbl">approve / send</div></div>
+      <div class="stat"><div class="num" id="stReview">0</div><div class="lbl">review / prune</div></div>
+      <div class="stat"><div class="num" id="stBlock">0</div><div class="lbl">block / handoff</div></div>
+    </div>
+    <div style="margin-top:8px;font-size:12px;color:#667085;">
+      tokens saved: <b id="stTokSaved">0</b> · cost saved: <b>$<span id="stCostSaved">0.000000</span></b>
+      · latency saved: <b><span id="stLatSaved">0</span> ms</b> · est. Jev cost: $<span id="stCost">0.000000</span> · <span id="stLast">no run yet</span></div>
+  </div>
+
+  <div class="card" id="savingsPanel">
+    <h2>💸 Savings vs Original Harness (full LLM per gate check)</h2>
+    <div class="big-stats">
+      <div class="sav-stat tok"><div class="num" id="svTokens">0</div><div class="lbl">tokens saved (run)</div></div>
+      <div class="sav-stat cost"><div class="num" id="svCost">$0</div><div class="lbl">cost saved (run)</div></div>
+      <div class="sav-stat lat"><div class="num" id="svLatency">0 ms</div><div class="lbl">latency saved · <span id="svLatPct">0%</span></div></div>
+      <div class="sav-stat auto"><div class="num" id="svAuto">0%</div><div class="lbl">auto-resolution (no human/LLM)</div></div>
+    </div>
+    <div class="hookbar-legend">per-hook tokens, last run:<span class="swatch" style="background:linear-gradient(90deg,#8b5cf6,#2563eb)"></span>Jev decision call<span class="swatch" style="background:rgba(217,119,6,.35)"></span>baseline sonnet call</div>
+    <div class="hookbars" id="hookBars"></div>
+    <table id="cmpTable">
+      <thead><tr><th>scenario</th><th>original cost</th><th>Jev cost</th><th>savings %</th><th>latency saved</th></tr></thead>
+      <tbody id="cmpBody"><tr><td colspan="5" class="empty">run scenarios to fill the comparison…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div id="adviceBox"></div>
+
+  <div class="card">
+    <h2>Event Stream <span style="text-transform:none">(WebSocket /ws)</span></h2>
+    <div id="stream"><span class="empty">Pick a scenario above to stream its gate events…</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Where Jev Is Injected — the 4 Decision Hooks</h2>
+    <div class="codemap">
+      <div class="hook-card h1"><b>H1 · Before prompt — Progressive Disclosure</b>
+        <code>hooks/skills.py</code> → <code>SkillsMiddleware.wrap_model_call</code>.
+        Two-pass Jev <code>choice</code> cascade picks category → skill; only the selected
+        skill's instructions are injected into the system prompt.</div>
+      <div class="hook-card h2"><b>H2 · Before model — Model Routing</b>
+        <code>hooks/router.py</code> → <code>RouterMiddleware.wrap_model_call</code>.
+        A probe hits <code>typesafe/jev-router</code>; the response <code>model</code> field
+        rewrites the ModelRequest before the real call.</div>
+      <div class="hook-card h3"><b>H3 · Before tool run — Risk Gating</b>
+        <code>hooks/risk_gate.py</code> → <code>RiskGateMiddleware.wrap_tool_call</code>.
+        Static deny list first (sudo, rm -rf, git push…), then Jev <code>noul</code>
+        questions (reversible / serves_task). Fail-closed to REVIEW on any Jev error.</div>
+      <div class="hook-card h4"><b>H4 · After result — Quality Gate</b>
+        <code>hooks/quality.py</code> → <code>QualityMiddleware.after_model</code>.
+        Jev <code>choice</code> judge (supported/unsupported/declined, accept ≥ 0.8);
+        unsupported answers loop back to the model once.</div>
+    </div>
+  </div>
+</main>
+
+<script>
+const HOOK_LABELS = {
+  hook1_skills: "H1 SKILLS", hook2_router: "H2 ROUTER",
+  hook3_risk_gate: "H3 RISK GATE", hook3_refund_gate: "H3 REFUND GATE",
+  hook4_quality: "H4 QUALITY", rag: "RAG RERANK",
+  multimodal: "MULTIMODAL", cascade: "CASCADE", advisor: "ADVISOR"
+};
+const stats = { events: 0, jev: 0, approve: 0, review: 0, block: 0,
+                tokSaved: 0, costSaved: 0, latSaved: 0 };
+let ws = null, running = false;
+const scenarioTotals = {};   // per-scenario original/Jev cost for the comparison table
+
+const streamEl = document.getElementById("stream");
+const emptyEl = streamEl.querySelector(".empty");
+
+fetch("/api/health").then(r => r.json()).then(h => {
+  document.getElementById("healthStatus").textContent =
+    `mode: ${h.mode} · key set: ${h.openrouter_key_set}`;
+  if (!h.openrouter_key_set) document.getElementById("modeBanner").style.display = "block";
+  const box = document.getElementById("buttons");
+  h.scenarios.forEach(s => {
+    const b = document.createElement("button");
+    b.textContent = s;
+    b.onclick = () => runScenario(s, b);
+    box.appendChild(b);
+  });
+}).catch(() => { document.getElementById("healthStatus").textContent = "server unreachable"; });
+
+function connectWs() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onmessage = ev => handleMessage(JSON.parse(ev.data));
+  ws.onclose = () => setTimeout(connectWs, 1500);
+}
+connectWs();
+
+function runScenario(name, btn) {
+  if (running) return;
+  running = true;
+  if (btn) btn.disabled = true;
+  const t0 = performance.now();
+  if (emptyEl) emptyEl.remove();
+  // REST fallback path is available at POST /api/run/{scenario} if WS is down.
+  if (ws && ws.readyState === 1) {
+    ws.send(name);
+    window._t0 = t0;
+  } else {
+    fetch(`/api/run/${name}`, { method: "POST" })
+      .then(r => r.json())
+      .then(p => {
+        p.events.forEach(e => renderEvent(e));
+        renderSavings(p);
+        finishRun(p.control_room, p.result, name, performance.now() - t0);
+      })
+      .catch(e => addRaw(`REST fallback failed: ${e}`))
+      .finally(() => { running = false; if (btn) btn.disabled = false; });
+  }
+}
+
+function handleMessage(m) {
+  if (m.error) { addRaw("error: " + m.error); running = false; return; }
+  if (m.type === "done") {
+    renderSavings(m);
+    finishRun(m.control_room, m.result, m.scenario, performance.now() - window._t0);
+    running = false;
+    document.querySelectorAll(".scenarios button").forEach(b => b.disabled = false);
+    return;
+  }
+  renderEvent(m);
+}
+
+function renderSavings(m) {
+  const s = m.savings || {};
+  const cmp = m.comparison || {};
+  const auto = (s.auto_resolution || {}).pct ?? 0;
+  document.getElementById("svTokens").textContent = (s.tokens_saved || 0).toLocaleString();
+  document.getElementById("svCost").textContent = "$" + (s.cost_saved_usd || 0).toFixed(6);
+  document.getElementById("svLatency").textContent = (s.latency_saved_ms || 0).toLocaleString() + " ms";
+  document.getElementById("svLatPct").textContent = (s.latency_saved_pct || 0) + "%";
+  document.getElementById("svAuto").textContent = auto + "%";
+
+  // cumulative control-room strip
+  stats.tokSaved += s.tokens_saved || 0;
+  stats.costSaved += s.cost_saved_usd || 0;
+  stats.latSaved += s.latency_saved_ms || 0;
+  updateStats();
+
+  // per-hook bars
+  const bars = document.getElementById("hookBars");
+  bars.innerHTML = "";
+  const perHook = s.per_hook || {};
+  const maxTok = Math.max(1, ...Object.values(perHook).map(h => h.baseline_tokens));
+  Object.entries(perHook).forEach(([hook, h]) => {
+    const row = document.createElement("div");
+    row.className = "hookbar-row";
+    const name = document.createElement("span");
+    name.textContent = HOOK_LABELS[hook] || hook;
+    const track = document.createElement("div");
+    track.className = "hookbar-track";
+    const base = document.createElement("div");
+    base.className = "hookbar-base";
+    base.style.width = (100 * h.baseline_tokens / maxTok) + "%";
+    const jev = document.createElement("div");
+    jev.className = "hookbar-jev";
+    jev.style.width = Math.max(1.5, 100 * h.jev_tokens / maxTok) + "%";
+    track.appendChild(base); track.appendChild(jev);
+    const val = document.createElement("span");
+    val.style.color = "#667085";
+    val.textContent = `${h.jev_tokens}/${h.baseline_tokens} tok`;
+    row.appendChild(name); row.appendChild(track); row.appendChild(val);
+    bars.appendChild(row);
+  });
+
+  // per-scenario comparison table
+  if (cmp.original && m.scenario) {
+    scenarioTotals[m.scenario] = cmp;
+    const body = document.getElementById("cmpBody");
+    body.innerHTML = "";
+    let totO = 0, totJ = 0;
+    Object.entries(scenarioTotals).forEach(([sc, c]) => {
+      const tr = document.createElement("tr");
+      const pct = c.cost_savings_pct ?? 0;
+      tr.innerHTML = `<td>${sc}</td><td>$${c.original.cost_usd.toFixed(6)}</td>` +
+        `<td>$${c.jev_gated.cost_usd.toFixed(6)}</td><td>${pct}%</td>` +
+        `<td>${Math.round(c.latency_saved_ms).toLocaleString()} ms</td>`;
+      body.appendChild(tr);
+      totO += c.original.cost_usd; totJ += c.jev_gated.cost_usd;
+    });
+    const tr = document.createElement("tr");
+    tr.className = "totals";
+    const totPct = totO ? (100 * (totO - totJ) / totO).toFixed(1) : "0";
+    tr.innerHTML = `<td>ALL SCENARIOS</td><td>$${totO.toFixed(6)}</td><td>$${totJ.toFixed(6)}</td><td>${totPct}%</td><td>—</td>`;
+    body.appendChild(tr);
+  }
+
+  // advisor recommendations as dismissible cards
+  (m.advice && m.advice.recommendations || []).forEach(r => {
+    const box = document.getElementById("adviceBox");
+    const card = document.createElement("div");
+    card.className = "advice-card";
+    const txt = document.createElement("div");
+    txt.innerHTML = `<b>💡 Advisor — ${r.decision === "LOWER_THRESHOLD" ? "lower threshold" : "raise threshold"}</b>${r.advice}`;
+    const close = document.createElement("button");
+    close.className = "close"; close.textContent = "×";
+    close.onclick = () => card.remove();
+    card.appendChild(txt); card.appendChild(close);
+    box.appendChild(card);
+  });
+}
+
+function addRaw(text) {
+  const div = document.createElement("div");
+  div.className = "ev-detail"; div.textContent = text;
+  streamEl.appendChild(div);
+}
+
+function renderEvent(e) {
+  // advisor events become dismissible advice cards, not stream entries
+  if (e.hook === "advisor") {
+    renderSavings({scenario: null, savings: null, comparison: null,
+                   advice: {recommendations: e.stage === "threshold_advice"
+                            ? [{decision: e.decision, advice: e.detail.advice}] : []}});
+    return;
+  }
+  stats.events++;
+  const d = e.detail || {};
+  if (e.cost_usd !== undefined && e.cost_usd !== null) stats.jev++;
+  else if (d.scores || d.probabilities) stats.jev++;
+  else if (["hook1_skills","rag","multimodal"].includes(e.hook)) stats.jev++;
+  if (["APPROVE","SEND","MATCH","SUPPORTED"].includes(e.decision)) stats.approve++;
+  else if (["REVIEW","PRUNE","UNSUPPORTED"].includes(e.decision)) stats.review++;
+  else if (["BLOCK","BLOCKED","HANDOFF","DECLINED","MISMATCH"].includes(e.decision)) stats.block++;
+  updateStats();
+
+  const card = document.createElement("div");
+  card.className = "event " + e.hook;
+
+  const head = document.createElement("div");
+  head.className = "ev-head";
+  const badge = document.createElement("span");
+  badge.className = "hook-badge";
+  badge.textContent = HOOK_LABELS[e.hook] || e.hook;
+  const chip = document.createElement("span");
+  chip.className = "chip " + e.decision;
+  chip.textContent = e.decision;
+  const stage = document.createElement("span");
+  stage.className = "ev-stage";
+  stage.textContent = e.stage;
+  head.appendChild(badge); head.appendChild(chip); head.appendChild(stage);
+  card.appendChild(head);
+
+  const probs = d.scores || d.probabilities || d.skill_probabilities
+             || d.category_probabilities || d.color_probabilities;
+  if (probs && typeof probs === "object") {
+    Object.entries(probs).forEach(([k, v]) => {
+      const row = document.createElement("div");
+      row.className = "bar-row";
+      const name = document.createElement("span"); name.className = "name"; name.textContent = k;
+      const track = document.createElement("div"); track.className = "bar-track";
+      const fill = document.createElement("div"); fill.className = "bar-fill";
+      fill.style.width = "0%";
+      track.appendChild(fill);
+      const val = document.createElement("span"); val.className = "val";
+      val.textContent = (+v).toFixed(2);
+      row.appendChild(name); row.appendChild(track); row.appendChild(val);
+      card.appendChild(row);
+      requestAnimationFrame(() => { fill.style.width = (Math.min(1, +v) * 100) + "%"; });
+    });
+  }
+
+  const textBits = [];
+  if (d.reason) textBits.push("reason: " + d.reason);
+  if (e.tokens_in !== undefined) textBits.push(
+    `jev: ${e.tokens_in}+${e.tokens_out} tok · $${(e.cost_usd || 0).toFixed(6)} · ${Math.round(e.latency_ms || 0)} ms` +
+    ` — saved ${e.tokens_saved} tok, $${(e.cost_saved_usd || 0).toFixed(6)}, ${Math.round(e.latency_saved_ms || 0)} ms vs baseline`);
+  if (d.chosen_model) textBits.push("model: " + d.chosen_model + " (" + (d.cost_tier || "?") + ")");
+  if (d.category) textBits.push("skill: " + d.category + "/" + d.skill);
+  if (d.commands) textBits.push("command: " + d.commands);
+  if (d.jev_error) textBits.push("jev_error: " + d.jev_error);
+  if (d.order_id) textBits.push(`order: ${d.order_id} amount: ${d.amount_cents}c`);
+  if (d.checks) textBits.push("checks: " + d.checks.join(" → "));
+  if (textBits.length) {
+    const det = document.createElement("div");
+    det.className = "ev-detail";
+    det.textContent = textBits.join("\n");
+    card.appendChild(det);
+  }
+  streamEl.appendChild(card);
+  card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+function updateStats() {
+  document.getElementById("stEvents").textContent = stats.events;
+  document.getElementById("stJev").textContent = stats.jev;
+  document.getElementById("stApprove").textContent = stats.approve;
+  document.getElementById("stReview").textContent = stats.review;
+  document.getElementById("stBlock").textContent = stats.block;
+  document.getElementById("stTokSaved").textContent = stats.tokSaved.toLocaleString();
+  document.getElementById("stCostSaved").textContent = stats.costSaved.toFixed(6);
+  document.getElementById("stLatSaved").textContent = Math.round(stats.latSaved).toLocaleString();
+  document.getElementById("stCost").textContent = (stats.jev * 0.0000168).toFixed(6);
+}
+
+function finishRun(cr, result, name, ms) {
+  document.getElementById("latency").textContent = `last run: ${name} in ${Math.round(ms)} ms`;
+  document.getElementById("stLast").textContent =
+    `${name}: ${cr.events} events · est $${cr.est_cost_usd}`;
+  if (result && result.final_answer) addRaw("final answer: " + result.final_answer);
+  else if (result) addRaw("result: " + JSON.stringify(result));
+}
+</script>
+<script src="/static/playground.js" defer></script>
+</body>
+</html>
